@@ -1,0 +1,188 @@
+uses
+clMainScript;
+
+var
+potionShopForm : TclGameForm;
+backButton : TClProButton;
+btnS : TclProButton;
+vScroll:TCLVertScrollBox;
+btnPriceArr,btnNameArr,btnImgArr, btnInfoArr  : TclArrayString;
+i : Integer;
+topPanel, bottomPanel : TclProPanel;
+lblMarket, lblMoney, lblInfo : TClProLabel;
+lblS, lblRed, lblGreen, lblBlue, lblPurple, lblOrange : TClProLabel; 
+   
+   
+void BackToShop;
+{
+  potionShopForm.btnGoBackClick(self);
+  clMainScript.GetTimer.Enabled = True;
+}
+
+void BtnOnClick; 
+var
+  clickedBtn:TClProButton;
+  currMoney, price: Integer;
+{
+  clickedBtn = TClProButton(potionShopForm.Clsender);
+  price = StrToInt(clGetStringAfter(clickedBtn.Caption,'$'));
+  lblMoney.Text = clGetStringAfter(lblMoney.Text,'$');
+  currMoney = StrToInt(lblMoney.Text);
+  
+        
+  if (price > currMoney)
+    ShowMessage('Insufficient balance!');
+  else
+  {
+    if(TClProButton(potionShopForm.Clsender).clTagInt == 1)
+    {
+      clMainScript.maxHour = 22;
+      clMainScript.redPotion = True;
+    }
+    else if(TClProButton(potionShopForm.Clsender).clTagInt == 2)
+    {
+      clMainScript.greenPotion = 1.1;
+    }
+    else if(TClProButton(potionShopForm.Clsender).clTagInt == 3)
+    {
+      clMainScript.orangePotion = 2;
+    }
+    else if(TClProButton(potionShopForm.Clsender).clTagInt == 4)
+    {
+      clMainScript.purplePotion = True;
+    }
+    else
+      ShowMessage('Congratulations! You’ve won the game. Now, enjoy the water of Gondor.');
+     
+    currMoney = currMoney - price;
+    lblMoney.Text = '$' + IntToStr(currMoney);
+    clMainScript.lblMoney.Text = lblMoney.Text;
+    clickedBtn.Enabled = False;
+    clickedBtn.Caption = 'Purchased';
+  }
+}
+ 
+{
+  potionShopForm = TclGameForm.Create(self);
+  potionShopForm.SetFormColor('#da7af0', '', clGNone);
+
+  btnNameArr = TclArrayString.Create;
+  btnPriceArr = TclArrayString.Create;
+  btnImgArr = TclArrayString.Create;
+  btnInfoArr = TclArrayString.Create;
+   
+  btnPriceArr.Add('500');
+  btnPriceArr.Add('1000');
+  btnPriceArr.Add('3000');
+  btnPriceArr.Add('2000');
+  btnPriceArr.Add('99999');
+   
+  btnImgArr.Add('https://i.hizliresim.com/l4iulb6.png');
+  btnImgArr.Add('https://i.hizliresim.com/o0156y0.png');
+  btnImgArr.Add('https://i.hizliresim.com/2xuq8o3.png');
+  btnImgArr.Add('https://i.hizliresim.com/eab9efe.png');
+  btnImgArr.Add('https://i.hizliresim.com/ga5wo1z.png');
+   
+  btnInfoArr.Add('Your store closes at 9 PM');
+  btnInfoArr.Add('Adds a 10% bonus to the revenue from sales');
+  btnInfoArr.Add('Doubles the revenue from sales');
+  btnInfoArr.Add('Increases the frequency of incoming customers');
+  btnInfoArr.Add('Unique water from the Gondor mountains');
+   
+  topPanel=potionShopForm.AddNewProPanel(potionShopForm, 'topPanel');
+  topPanel.Height=potionShopForm.clheight*40/100;
+  topPanel.Align=alMostTop;
+  topPanel.SetclProSettings(topPanel.clProSettings);
+   
+  bottomPanel=potionShopForm.AddNewProPanel(potionShopForm, 'bottomPanel');
+  bottomPanel.Height=potionShopForm.clheight*60/100;
+  bottomPanel.Align=AlTop;
+   
+  lblMarket = potionShopForm.AddNewProLabel(topPanel, 'lblMarket', 'POTION FACTORY');
+  lblMarket.Align = alCenter;
+  lblMarket.Margins.Bottom = 80;
+  lblMarket.Height = topPanel.Height * 0.3;
+  lblMarket.Width = 200;
+  clComponent.SetupComponent(lblMarket,'{ "TextBold":"yes","TextSize":20, "TextHorizontalAlign":"center" ,"MarginRight":5}');
+ 
+  lblInfo = potionShopForm.AddNewProLabel(topPanel, 'lblInfo', '');
+  lblInfo.Align = alCenter;
+  lblInfo.Margins.Bottom = 5;
+  lblInfo.Height = topPanel.Height * 0.3;
+  lblInfo.Width = topPanel.Width * 0.85;
+  lblInfo.Text = 'Welcome to Potion Factory! We sell best qualified potions. You can find prices and 
+  information of potions on them. But be careful, effects of potions will be lost at midnight!'
+  clComponent.SetupComponent(lblInfo,'{ "TextBold":"yes","TextSize":14, "TextHorizontalAlign":"center"}');
+ 
+  vScroll = potionShopForm.AddNewVertScrollBox(bottomPanel,'ScrollBoxY');
+  vScroll.Align = alMostTop;
+  vScroll.Height = bottomPanel.Height;
+  vScroll.Margins.Right = 100;
+  vScroll.Margins.Left = 100;
+   
+  for (i = 0 to 4)  //Add potion buttons
+  {
+    btnS = potionShopForm.AddNewProButton(vScroll, 'potion' + IntToStr(i) , '$' + btnPriceArr.GetItem(i));
+    btnS.Align = AlTop;
+    btnS.Height = 150;
+    btnS.Margins.Bottom = 10;
+    btnS.clProSettings.IsFill = True;
+    btnS.clProSettings.FontSize = 14;
+    btnS.clProSettings.FontColor = clAlphaColor.clHexToColor('#000000');
+    btnS.clProSettings.TextSettings.Font.Style = [fsBold];
+    btnS.clProSettings.BackgroundColor = clAlphaColor.clHexToColor('#f2c23d');
+    btnS.clProSettings.RoundHeight = 15;
+    btnS.clProSettings.RoundWidth = 15;
+    btnS.clProSettings.FontVertAlign = palLeading;
+    btnS.clProSettings.FontHorzAlign = palcenter;
+    btnS.clProSettings.PictureSource =btnImgArr.GetItem(i);
+    btnS.clProSettings.PictureAutoFit = True;
+    btnS.SetclProSettings(btnS.clProSettings);
+    potionShopForm.AddNewEvent(btnS,tbeOnClick,'PotionShop.BtnOnClick');
+    lblS = potionShopForm.AddNewProLabel(btnS, 'lbl' + IntToStr(i), '');
+    clComponent.SetupComponent(lblS,'{"Align" : "Bottom", "Width" :150,"TextColor":"#000000","TextSize":12, "TextHorizontalAlign":"center","TextBold":"yes"}'); 
+    lblS.Text = btnInfoArr.GetItem(i);
+    btnS.clTagInt = i+1;
+    if((clMainScript.redPotion == True) && (btnS.clTagInt == 1))  
+    {
+      btnS.Enabled = False;
+      btnS.Caption = 'Purchased';
+    }
+    else if((clMainScript.greenPotion == 1.1) && (btnS.clTagInt == 2))
+    {
+      btnS.Enabled = False;
+      btnS.Caption = 'Purchased';
+    }
+    else if((clMainScript.orangePotion == 2) && (btnS.clTagInt == 3)){
+      btnS.Enabled = False;
+      btnS.Caption = 'Purchased';
+    }
+    else if((clMainScript.purplePotion == True) && (btnS.clTagInt == 4)){
+       btnS.Enabled = False;
+       btnS.Caption = 'Purchased';
+    }
+  }
+  
+  backButton = potionShopForm.AddNewProButton(topPanel, 'backButton', 'BACK');
+  backButton.Align = alCenter;
+  backButton.Margins.Top = 80;
+  backButton.Margins.Left = 150;
+  backButton.Height = topPanel.Height * 0.2;
+  clComponent.SetupComponent(backButton,'{"ImgFit": "yes", 
+  "ImgStretch": "yes", "TextSize":14, "TextColor": "#000000", "TextBold":"yes"}');
+  potionShopForm.SetImage(backButton,'https://i.hizliresim.com/7rs6vw4.png'); 
+  potionShopForm.AddNewEvent(backButton,tbeOnClick,'PotionShop.BackToShop');
+
+  lblMoney = potionShopForm.AddNewProLabel(topPanel, 'lblMoney','');
+  lblMoney.Text = clMainScript.lblMoney.Text;
+  lblMoney.Align = alCenter;
+  lblMoney.Margins.Top = 80;
+  lblMoney.Margins.Right = 150;
+  lblMoney.Height = topPanel.Height * 0.2;
+  clComponent.SetupComponent(lblMoney,'{ "TextBold":"yes","TextSize":20, "BackgroundColor": "da7af0",
+  "TextVerticalAlign": "center", "TextHorizontalAlign": "center", "RoundWidth": 10, "RoundHeight" : 10,
+  "BorderColor":"#9c59ab", "BorderWidth" : 6    
+  }');
+   
+  potionShopForm.Run;
+}

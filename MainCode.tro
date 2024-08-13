@@ -1,0 +1,901 @@
+var
+ MainForm : TclGameForm;
+ customerImg, standImg, requestedItemImg, clockImg : TCLProImage;
+ itemImg1, itemImg2, itemImg3, itemImg4 : TCLProImage;
+ standLayout : TClLayout;
+ GetTimer: TClTimer;
+ lblTimer, lblDay, lblMoney, lblPrice, lblShopStatus, lblConversation: TclProLabel;
+ duration, hour, minute, fillIndex, randomIndex : Integer;
+ randomChoice, randomTime, dayCounter, itemCount : Integer;
+ dailyIncome, dailyExpense, totalIncome, totalExpense : Integer;
+ bargainAttempt, maxHour : Integer;
+ customerArrived, purplePotion, redPotion : Boolean;    
+ greenPotion, orangePotion, custRatio : Float;
+ tempName, tempImg, tempPrice, decision: String;
+ greenButtonURL, redButtonURL, orangeButtonURL : String;
+ backgroundImages, customerImages : TclArrayString;
+ dailySoldItems, dailyPurchasedItems : TclArrayString;
+ onSaleItemsID, defaultRatioList : TclArrayInteger;
+ timerPanel, standPanel, custPanel, textPanel : TclProPanel;
+ buyPanel,  timePanel, moneyPanel, chatPanel : TclProPanel;
+ acceptButton, rejectButton : TclProButton;
+ purchaseButton, sellButton, bargainButton, cancelButton, offerButton : TclProButton;
+ statsButton, shopButton, sleepButton : TclProButton;
+ bargainEdit : TclProEdit;
+
+void CreateTable;  //Create Initial Database Table
+{
+  try
+  Clomosy.DBSQLiteConnect(Clomosy.AppFilesPath + 'ClomosyDatabase3.db3', '');
+  Clomosy.DBSQLiteQuery.SQL.Text = 
+      'CREATE TABLE IF NOT EXISTS Products (ProductID INTEGER NOT NULL,ProductName TEXT NOT NULL,ProductImg TEXT,ProductPrice TEXT)';
+    Clomosy.DBSQLiteQuery.OpenOrExecute;
+  except
+    ShowMessage('Exception class: ' + LastExceptionClassName + ' Exception Message: ' + LastExceptionMessage);
+    }
+}
+
+
+void FillDatabase;  
+{
+  Clomosy.DBSQLiteQuery.SQL.Text = 'SELECT ProductName FROM Products WHERE ProductID=''' + '1' + ''';';
+  Clomosy.DBSQLiteQuery.OpenOrExecute;
+  if (Clomosy.DBSQLiteQuery.Found) {
+    //Database have data already
+  }
+  else
+  {
+    Clomosy.DBSQLiteQuery.SQL.Text = 
+    'INSERT INTO Products (ProductID, ProductName,ProductImg,ProductPrice) VALUES (''' + '1' + ''', ''' + 'Plush Toy'+ ''',''' + 'https://i.hizliresim.com/3sd4imt.png' + ''',''' + '200' + '''),
+    (''' + '2' + ''', ''' + 'Antique Clock'+ ''',''' + 'https://i.hizliresim.com/7hyl7ls.png' + ''',''' + '400' + '''),
+    (''' + '3' + ''', ''' + 'Retro Radio' + ''',''' + 'https://i.hizliresim.com/tkd0xu8.png' + ''',''' + '650' + '''),
+    (''' + '4' + ''', ''' + 'Diamond Necklace'+ ''',''' + 'https://i.hizliresim.com/ohnxkx4.png' + ''',''' + '2000' + '''),
+    (''' + '5' + ''', ''' + 'Camera'+ ''',''' + 'https://i.hizliresim.com/rm4z7n1.png' + ''',''' + '1500' + '''),
+    (''' + '6' + ''', ''' + 'Old Map'+ ''',''' + 'https://i.hizliresim.com/4ajqs1o.png' + ''',''' + '800' + '''),
+    (''' + '7' + ''', ''' + 'Porcelain Vase'+ ''',''' + 'https://i.hizliresim.com/bo09wp5.png' + ''',''' + '3500' + '''),
+    (''' + '8' + ''', ''' + 'Classic Record'+ ''',''' + 'https://i.hizliresim.com/g2ij8hw.png' + ''',''' + '1200' + '''),
+    (''' + '9' + ''', ''' + 'Handmade Carpet'+ ''',''' + 'https://i.hizliresim.com/vcd20fn.png' + ''',''' + '6000' + '''),
+    (''' + '10' + ''', ''' + 'Rare Book'+ ''',''' + 'https://i.hizliresim.com/jz30rov.png' + ''',''' + '3500' + ''')';
+    Clomosy.DBSQLiteQuery.OpenOrExecute;
+  }
+}
+
+void ToggleMainButtonsVisibility;
+{
+   acceptButton.Visible = not acceptButton.Visible;
+   rejectButton.Visible = not rejectButton.Visible;
+}
+
+
+void RejectCustomer;  
+var
+status : String;
+time1, time2 : Integer;
+{
+  clAnimateFloat(customerImg,'Opacity',0, 1,0,0);
+  customerArrived = False;
+  ToggleMainButtonsVisibility;
+  chatPanel.Visible = False;
+  status = lblShopStatus.Text;
+  GetTimer.Interval = 25;
+   
+  if((status == 'OPEN') && (hour <> maxHour-1))
+  {
+    if(purplePotion)
+      randomTime = clMath.GenerateRandom(hour + 1,hour + 2);
+    else
+    {
+      time1 = clMath.GenerateRandom(hour + 1,maxHour);
+      time2 = clMath.GenerateRandom(hour + 1,maxHour);
+      
+      if(time1 < time2)
+        randomTime = time1;
+      else
+        randomTime = time2;
+    }
+  }
+  else
+  {
+    randomTime = clMath.GenerateRandom(7,10);
+  }
+}
+
+function GetRandomRatio : Float;
+var
+random : Float;
+{
+  random = clMath.GenerateRandom(0,defaultRatioList.Count);
+  Result = defaultRatioList.GetItem(random)/100;
+}
+
+void AcceptCustomer;
+var
+ratio : Float;
+{
+  ratio = GetRandomRatio;  //Random ratio to use on base price of item
+  ToggleMainButtonsVisibility;
+  tempPrice = tempPrice + (tempPrice * ratio);
+  lblPrice.Text = 'My offer is:' + IntToStr(tempPrice);
+  lblConversation.Text = '';
+  lblConversation.Visible = False;
+  MainForm.SetImage(requestedItemImg, tempImg);
+  requestedItemImg.Visible = True;
+  cancelButton.Visible = True;
+  bargainButton.Visible = True;
+  if(decision == 'sell')
+    purchaseButton.Visible = True;
+  else   
+    sellButton.Visible = True;
+}
+
+void ResetPotions;  //Resets effects of potions 
+{
+  greenPotion = 1;
+  orangePotion = 1;
+  purplePotion = False;
+  redPotion = False;
+  maxHour = 18;
+} 
+
+
+void SleepButtonF;
+var
+status : String;
+{
+  status = lblShopStatus.Text;
+  MainForm.SetFormBGImage(backgroundImages.GetItem(2));
+  if(hour >= maxHour)
+  {
+    dayCounter = dayCounter + 1;
+    lblDay.Text = 'Day:' + IntToStr(dayCounter);
+  }
+  duration = 359;
+  ResetPotions;
+}
+
+void TimerStart;
+{
+  GetTimer.Enabled = True;
+  MainForm.AddNewEvent(GetTimer,tbeOnTimer,'StartTimer');
+}
+
+void GetRandomItemInfo;  //Assigns random item info from database
+var
+Qry : TClSQLiteQuery;
+{
+  randomIndex = clMath.GenerateRandom(1, 11);
+  try
+  Qry = Clomosy.DBSQLiteQueryWith('SELECT ProductName, ProductPrice, ProductImg FROM Products WHERE ProductID = ' + IntToStr(randomIndex));
+  Qry.OpenOrExecute;
+  tempName = Qry.FieldByName('ProductName').AsString;
+  tempPrice = Qry.FieldByName('ProductPrice').AsString;
+  tempImg = Qry.FieldByName('ProductImg').AsString;
+  except
+  ShowMessage('Exception class: ' + LastExceptionClassName + ' Exception Message: ' + LastExceptionMessage);
+  }
+}
+
+
+void UpdateShopStatus;
+{
+  case hour of
+  {
+    21:
+    {
+      if(redPotion) //If red potion has been purchased
+      {
+        lblShopStatus.Text ='CLOSED';
+        clComponent.SetupComponent(lblShopStatus, '{ "BackgroundColor" : "#eb1e1e"}');
+      }
+    }
+    18:
+    {
+      if(not redPotion)  //If red potion has not been purchased
+      {
+        lblShopStatus.Text ='CLOSED';
+        clComponent.SetupComponent(lblShopStatus, '{ "BackgroundColor" : "#eb1e1e"}');
+      }
+      else  //If red potion has been purchased - it extends time
+      {
+        lblShopStatus.Text ='OPEN';
+        clComponent.SetupComponent(lblShopStatus, '{ "BackgroundColor" : "#2be049"}');
+      }
+    }
+    6: 
+    {
+      lblShopStatus.Text = 'OPEN';
+      clComponent.SetupComponent(lblShopStatus, '{ "BackgroundColor" : "#2be049"}');
+    }
+  }
+}
+
+function CheckInventory : String;  //Our capacity is 4, it checks capacity
+{ 
+  if (itemCount == 0)
+    Result = 'empty';
+  else if(itemCount == 4)
+    Result = 'full';
+  else 
+    Result = 'exist';
+}
+
+void InspectItem (itemID : Integer);  //Update item info (only if customer buy something)
+var
+Qry : TClSQLiteQuery;
+{
+   try
+   Qry = Clomosy.DBSQLiteQueryWith('SELECT ProductName, ProductPrice, ProductImg FROM Products WHERE ProductID = ' + IntToStr(itemID));
+   Qry.OpenOrExecute;
+   tempName = Qry.FieldByName('ProductName').AsString;
+   tempPrice = Qry.FieldByName('ProductPrice').AsString;
+   tempImg = Qry.FieldByName('ProductImg').AsString;
+   except
+   ShowMessage('Exception class: ' + LastExceptionClassName + ' Exception Message: ' + LastExceptionMessage);
+   }
+}
+
+void CustBuyPropose;  //Customer wants to buy something
+var
+randomIndexFind : Integer;
+{
+  do
+  {
+    randomIndexFind = clMath.GenerateRandom(0, onSaleItemsID.Count); 
+  }
+  while (onSaleItemsID.GetItem(randomIndexFind) <> 0);  //Traverse randomly stand, until find not null item 
+   
+  InspectItem(onSaleItemsID.GetItem(randomIndexFind));
+  lblConversation.Text = 'I want to buy ' + tempName;
+  randomIndex = randomIndexFind;
+}
+
+void CustSellPropose;  //Customer wants to sell something
+{
+  lblConversation.Text = 'I want to sell ' + tempName;
+}
+
+void SendCustomer;
+var 
+status: String;
+time1, time2 : Integer;
+{
+  clAnimateFloat(customerImg,'Opacity',0, 1,0,0);
+  customerArrived = False;
+  chatPanel.Visible = False;
+  requestedItemImg.Visible = False;
+  purchaseButton.Visible = False;
+  sellButton.Visible = False;
+  cancelButton.Visible = False;
+  bargainButton.Visible = False;
+  bargainEdit.Visible = False;
+  offerButton.Visible = False;
+  lblConversation.Visible = true;
+  bargainEdit.Text = '';
+  lblPrice.Text = '';
+  status = lblShopStatus.Text;
+  GetTimer.Interval = 25;
+  
+  if((status == 'OPEN') && (hour <> maxHour-1))
+  {
+    if(purplePotion)  //If purple potion has been purchased (Frequency of arriving customers)
+      randomTime = clMath.GenerateRandom(hour + 1,hour + 2);
+    else
+    {
+      time1 = clMath.GenerateRandom(hour + 1,maxHour);
+      time2 = clMath.GenerateRandom(hour + 1,maxHour);
+      
+      if(time1 < time2)
+        randomTime = time1;
+      else
+        randomTime = time2;
+    }
+  }
+  else  //Day is over, decide next day's time
+  {
+    randomTime = clMath.GenerateRandom(7,10);
+  }
+}
+
+void CallCustomer (randomHour : Integer);
+var
+capacity : String;
+randomImgIndex : Integer;
+status : String;
+{
+  UpdateShopStatus;
+  status = lblShopStatus.Text;
+  
+  if((customerArrived == False) && (randomHour == hour) && (status == 'OPEN'))
+  {  
+    GetTimer.Interval = 100;  //Make slow down timer speed
+    customerArrived = true;
+    chatPanel.Visible = true;
+    custRatio = (clMath.GenerateRandom(1,4) * 10)/100;  //Generate a random ratio for customer bargain ratio
+    bargainAttempt = clMath.GenerateRandom(0,3);  //Generate a random attempt for customer bargain attempt
+    
+    randomImgIndex = clMath.GenerateRandom(0, customerImages.Count);  //Generate a random index for customer image
+    MainForm.SetImage(customerImg, customerImages.GetItem(randomImgIndex));
+    clRTMethod(custPanel, 'SendToBack');
+    
+    customerImg.Visible = True;
+    clAnimateFloat(customerImg,'Opacity',1, 1,0,0);
+     
+    randomChoice = clMath.GenerateRandom(1, 3);  //Generate a random number for customer decision
+  
+    ToggleMainButtonsVisibility;
+     
+    capacity = CheckInventory;
+  
+    if (capacity == 'empty')   //Customer is required to make a sell
+    {
+      GetRandomItemInfo;
+      CustSellPropose;
+      decision = 'sell';
+    }
+    else if (capacity == 'full')  //Customer is required to make a buy
+    {
+      CustBuyPropose;
+      decision = 'buy';
+    }
+    else //Customer randomly decides whether buy or sell
+    {
+      case randomChoice of
+      {
+        1:
+        {
+          CustBuyPropose;
+          decision = 'buy';
+        }
+        2:
+        {
+          GetRandomItemInfo;
+          CustSellPropose; 
+          decision = 'sell';
+        }
+      }
+    }
+  }
+  else if((customerArrived == true) && (status == 'CLOSED'))
+  {
+    SendCustomer;
+    if(acceptButton.Visible == True)
+    {
+      ToggleMainButtonsVisibility;
+    }
+  }
+}
+
+void StartTimer;
+{
+  Inc(duration);
+  hour = (duration div 60);
+  minute = (duration mod 60);
+  
+  lblTimer.Caption = IntToStr(hour)+':'+IntToStr(minute);
+
+  if(hour == 24)
+  {
+    duration = 0;
+    dayCounter = dayCounter + 1;
+    lblDay.Text = 'Day:' + IntToStr(dayCounter);
+    ResetPotions;
+  }
+  else if(hour == 6)
+  {
+    dailyIncome = 0;
+    dailyExpense = 0;
+    dailySoldItems.RemoveAll;
+    dailyPurchasedItems.RemoveAll;
+  }
+
+  case hour of  //Update background image
+  {
+    0:MainForm.SetFormBGImage(backgroundImages.GetItem(0));
+    4:MainForm.SetFormBGImage(backgroundImages.GetItem(1));
+    8:MainForm.SetFormBGImage(backgroundImages.GetItem(2));
+    12:MainForm.SetFormBGImage(backgroundImages.GetItem(3));
+    16:MainForm.SetFormBGImage(backgroundImages.GetItem(4));
+    20:MainForm.SetFormBGImage(backgroundImages.GetItem(5));
+  }
+      
+  if(lblShopStatus.Text == 'OPEN')
+  {
+    sleepButton.Enabled = False;
+    sleepButton.Opacity = 0.5;
+  }
+  else
+  {
+    sleepButton.Enabled = True;
+    sleepButton.Opacity = 1;
+  }
+        
+  CallCustomer(randomTime);  //Continuosly call a customer 
+}
+ 
+
+void UpdateStand(index : Integer);
+{
+  case index of
+  {
+    0:
+    {
+    MainForm.SetImage(itemImg1, tempImg);
+    if(onSaleItemsID.GetItem(index) <> 0)
+       itemImg1.Visible = True;
+    else 
+       itemImg1.Visible = False;
+    }
+    1:
+    {
+    MainForm.SetImage(itemImg2, tempImg);
+    if(onSaleItemsID.GetItem(index) <> 0)
+       itemImg2.Visible = True;
+    else 
+       itemImg2.Visible = False;
+    }
+    2:
+    {
+    MainForm.SetImage(itemImg3, tempImg);
+    if(onSaleItemsID.GetItem(index) <> 0)
+       itemImg3.Visible = True;
+    else 
+       itemImg3.Visible = False;
+    }
+    3:
+    {
+    MainForm.SetImage(itemImg4, tempImg);
+    if(onSaleItemsID.GetItem(index) <> 0)
+       itemImg4.Visible = True;
+    else 
+       itemImg4.Visible = False;
+    }
+  }
+}
+
+void PurchaseItem (price, itemID : Integer)
+var
+currMoney : Integer;
+index : Integer;
+{ 
+  currMoney = StrToInt(clGetStringAfter(lblMoney.Text,'$'));
+  if (price > currMoney)
+    ShowMessage('Insufficient balance!');
+  else
+  {
+    currMoney = currMoney - price;
+    lblMoney.Text = '$' + IntToStr(currMoney);
+    dailyPurchasedItems.Add(tempName + ' (' + IntToStr(tempPrice) + ')');
+    dailyExpense = dailyExpense + tempPrice;  
+    totalExpense = totalExpense + tempPrice;
+    
+    for (index = 0 to onSaleItemsID.Count - 1)
+    {
+      if(onSaleItemsID.GetItem(index) == 0)  //Finding available place on stand
+      {
+        onSaleItemsID.SetItem(index, itemID);
+        itemCount = itemCount + 1;
+        UpdateStand(index);
+        Break;
+      }
+    }
+  }
+}
+ 
+void PurchaseButtonF;
+{
+  PurchaseItem(StrToInt(tempPrice), randomIndex);
+  SendCustomer;
+}
+
+void SellItem(price, itemID : Integer);
+var
+currMoney : Integer;
+index : Integer;
+{
+  currMoney = StrToInt(clGetStringReplace(lblMoney.Text, '$', ''));
+  currMoney = currMoney + (price * greenPotion * orangePotion);  //If potion buff exists, it multiplies
+  lblMoney.Text = '$' + IntToStr(currMoney);
+   
+  for (index = 0 to onSaleItemsID.Count - 1)
+  {
+    if(onSaleItemsID.GetItem(index) == itemID)  //Finding requested item on stand
+    {
+      onSaleItemsID.SetItem(index, 0);
+      itemCount = itemCount - 1;
+      UpdateStand(index);
+      Break;
+    }
+  }
+  dailySoldItems.Add(tempName + ' (' + IntToStr(tempPrice) + ')');
+  dailyIncome = dailyIncome + tempPrice;  
+  totalIncome = totalIncome + tempPrice;
+}
+ 
+void SellButtonF;  
+{
+   SellItem(StrToInt(tempPrice), onSaleItemsID.GetItem(randomIndex));
+   SendCustomer;
+}
+ 
+void CancelButtonF;
+{
+   SendCustomer;
+}
+ 
+void BargainButtonF;
+{
+  requestedItemImg.Visible = False;
+  lblPrice.Text = '';
+  bargainButton.Visible = False;
+  bargainEdit.Visible = True;
+  offerButton.Visible = True;
+}
+ 
+void MakeOffer;
+var
+offerAmount : Integer;
+{
+  try
+  offerAmount = StrToInt(bargainEdit.Text);
+
+  if(decision == 'buy') //If customer wants to buy
+  {
+    if(offerAmount > (tempPrice + tempPrice * custRatio)) //Our offer is too high
+    {
+      if(bargainAttempt <> 0)
+      {
+        tempPrice = (tempPrice + tempPrice * (custRatio/ (2 * bargainAttempt)));
+        tempPrice = trunc(tempPrice);
+        lblPrice.Text = 'No, my offer is ' + IntToStr(tempPrice);
+        bargainAttempt = bargainAttempt - 1;
+      }
+      else
+      {
+         ShowMessage('You missed the customer, be more careful next time!');
+         SendCustomer;
+      }
+    }
+    else //Our offer is acceptable
+    {
+      lblPrice.Text = 'Sure, we dealt!';
+      tempPrice = offerAmount;
+      offerButton.Visible = False;
+    }
+  }
+  else  //If customer wants to sell
+  {
+    if(offerAmount < (tempPrice - tempPrice * custRatio)) //Our offer is too low
+    {
+      if(bargainAttempt <> 0)
+      {
+        tempPrice = (tempPrice - tempPrice * (custRatio/ (2 * bargainAttempt)));
+        lblPrice.Text = 'No, my offer is ' + IntToStr(tempPrice);
+        bargainAttempt = bargainAttempt - 1;
+      }
+      else
+      {
+        ShowMessage('You missed the customer, be more careful next time!');
+        SendCustomer;
+      }
+    }
+    else  //Our offer is acceptable
+    {
+       lblPrice.Text = 'Sure, we dealt!';
+       tempPrice = offerAmount;
+       offerButton.Visible = False;
+    }
+  }
+  
+  except
+    ShowMessage('Please enter valid offer');
+  }
+}
+
+void ShowStats;
+{
+  GetTimer.Enabled = False;
+  Clomosy.RunUnit('Stats');
+}
+
+void GoToShop;
+{
+  GetTimer.Enabled = False;
+  Clomosy.RunUnit('PotionShop');
+}
+
+ 
+//Main
+{
+  MainForm=TclGameForm.Create(self);
+
+  CreateTable;
+  FillDatabase;
+  
+  GetTimer= MainForm.AddNewTimer(MainForm,'GetTimer',25); 
+  TimerStart;
+  
+  onSaleItemsID = TclArrayInteger.Create;
+  defaultRatioList = TclArrayInteger.Create;
+  dailySoldItems = TclArrayString.Create;
+  dailyPurchasedItems = TclArrayString.Create;
+   
+  greenButtonURL = 'https://i.hizliresim.com/7rs6vw4.png';
+  redButtonURL = 'https://i.hizliresim.com/6hzfn1b.png';
+  orangeButtonURL = 'https://i.hizliresim.com/fnehicj.png';
+   
+  for(fillIndex = 0 to 3) //Represents the ID of items on sale (4 unit stocks)
+  {
+    onSaleItemsID.Add(0);
+  }
+  
+  for(fillIndex = -50 to 50)  //Default ratio list in order to produce different item prices
+  {
+    defaultRatioList.Add(fillIndex);
+    fillIndex = fillIndex + 9;
+  }
+  
+   
+  standPanel=MainForm.AddNewProPanel(MainForm, 'standPanel');  //Bottom panel
+  standPanel.Height=MainForm.clheight*30/100;
+  standPanel.Align=alMostBottom;
+  standPanel.SetclProSettings(standPanel.clProSettings);
+
+  custPanel=MainForm.AddNewProPanel(MainForm, 'custPanel');  //Middle-down panel
+  custPanel.Height=MainForm.clheight*30/100;
+  custPanel.Align=alBottom;
+  custPanel.SetclProSettings(custPanel.clProSettings);
+   
+  textPanel=MainForm.AddNewProPanel(MainForm, 'textPanel');  ////Middle-up panel
+  textPanel.Height=MainForm.clheight*30/100;
+  textPanel.Align=alTop;
+  textPanel.SetclProSettings(textPanel.clProSettings);
+   
+  timePanel=MainForm.AddNewProPanel(MainForm, 'timePanel');  //Top panel
+  timePanel.Height=MainForm.clheight*10/100;
+  timePanel.Align=alMostTop;
+  timePanel.SetclProSettings(timePanel.clProSettings);
+   
+  chatPanel = MainForm.AddNewProPanel(textPanel,'chatPanel');  
+  chatPanel.Align = alCenter;
+  chatPanel.Height = textPanel.Height * 0.9;
+  chatPanel.Margins.Bottom = textPanel.Height * 0.1;
+  chatPanel.Width = 500;
+  chatPanel.Visible = False;
+  clComponent.SetupComponent(chatPanel, '{"BackgroundColor" : "#f7f7f7", "RoundHeight":4, "RoundWidth":4, 
+  "BorderWidth" : 4, "BorderColor":"#000000"}')
+   
+  lblConversation = MainForm.AddNewProLabel(chatPanel,'lblConversation', '');  //Customer conversation label
+  lblConversation.Align = alMostTop;
+  lblConversation.Height = textPanel.Height * 20/100;
+  lblConversation.Width = 200;
+  clComponent.SetupComponent(lblConversation,'{"TextSize":14, "TextColor": "#000000", "TextBold":"yes", 
+  "TextHorizontalAlign": "center", "MarginTop": 10}');   
+  
+  bargainEdit = MainForm.AddNewProEdit(chatPanel, 'bargainEdit', 'Enter your offer here...');
+  bargainEdit.Align = alTop;
+  bargainEdit.Visible = False;
+  bargainEdit.Width = chatPanel.Width * 0.8;
+  clComponent.SetupComponent(bargainEdit, '{"BackgroundColor" : "#e3e1e1",  "MarginLeft":50, "MarginRight":50,
+  "RoundHeight": 4, "RoundWidth" : 4, "BorderColor": "#000000"}');
+   
+  //Buttons
+  acceptButton = MainForm.AddNewProButton(chatPanel,'accept','Lets look!');
+  clComponent.SetupComponent(acceptButton,'{"Align" : "center", "MarginRight":300, "MarginBottom":30, "Width" :180, "Height":30, "ImgFit" : "yes", "TextSize":14, 
+  "ImgStretch":"yes", "TextColor": "#ffffff", "TextBold":"yes"}');
+  MainForm.AddNewEvent(acceptButton,tbeOnClick,'AcceptCustomer');
+  MainForm.SetImage(acceptButton, greenButtonURL);
+   
+  rejectButton = MainForm.AddNewProButton(chatPanel,'ignore','Im not interested in!');
+  rejectButton.Height = 30;
+  rejectButton.Width = 180;
+  clComponent.SetupComponent(rejectButton,'{"Align" : "center", "MarginLeft":300, "MarginBottom":30, "ImgFit" : "yes", "TextSize":14, 
+  "ImgStretch":"yes",  "TextColor": "#ffffff", "TextBold":"yes"}');
+  MainForm.SetImage(rejectButton, redButtonURL); 
+  MainForm.AddNewEvent(rejectButton,tbeOnClick,'RejectCustomer');
+  
+  purchaseButton = MainForm.AddNewProButton(chatPanel,'purchaseButton','Purchase');
+  purchaseButton.Height = 30;
+  clComponent.SetupComponent(purchaseButton,'{"Align" : "center", "MarginRight": 300, "MarginBottom":15,
+  "ImgFit": "yes", "ImgStretch": "yes", "TextSize":14, "TextColor": "#ffffff", "TextBold":"yes"}');
+  MainForm.SetImage(purchaseButton, greenButtonURL); 
+  MainForm.AddNewEvent(purchaseButton,tbeOnClick,'PurchaseButtonF');
+   
+  sellButton = MainForm.AddNewProButton(chatPanel,'sellButton','Sell');
+  sellButton.Height = 30;
+  clComponent.SetupComponent(sellButton,'{"Align" : "center", "MarginRight": 300, "MarginBottom":15, 
+  "ImgFit": "yes", "ImgStretch": "yes", "TextSize":14, "TextColor": "#ffffff", "TextBold":"yes"}');
+  MainForm.SetImage(sellButton, greenButtonURL); 
+  MainForm.AddNewEvent(sellButton,tbeOnClick,'SellButtonF');
+
+  bargainButton = MainForm.AddNewProButton(chatPanel,'bargainButton','Bargain');
+  bargainButton.Height = 30;
+  clComponent.SetupComponent(bargainButton,'{"Align" : "center", "MarginLeft": 175, "MarginBottom":15, 
+  "ImgFit" : "yes", "TextSize":14, "TextColor": "#ffffff", "TextBold":"yes"}');
+  MainForm.SetImage(bargainButton, orangeButtonURL); 
+  MainForm.AddNewEvent(bargainButton,tbeOnClick,'bargainButtonF');
+   
+  cancelButton = MainForm.AddNewProButton(chatPanel,'cancel','Cancel');
+  cancelButton.Height = 30;
+  clComponent.SetupComponent(cancelButton,'{"Align" : "center", "MarginLeft": 375, "MarginBottom":15, 
+  "ImgFit" : "yes", "TextSize":14, "TextColor": "#ffffff", "TextBold":"yes"}');
+  MainForm.SetImage(cancelButton, redButtonURL); 
+  MainForm.AddNewEvent(cancelButton,tbeOnClick,'CancelButtonF');
+  
+  offerButton = MainForm.AddNewProButton(chatPanel,'offerButton','Offer');
+  offerButton.Height = 30;
+  clComponent.SetupComponent(offerButton,'{"Align" : "center", "MarginBottom":15, "MarginLeft":15,
+  "ImgFit" : "yes", "TextSize":14, "TextColor": "#ffffff", "TextBold":"yes"}');
+  MainForm.SetImage(offerButton, orangeButtonURL); 
+  MainForm.AddNewEvent(offerButton,tbeOnClick,'MakeOffer');
+  
+  //Images
+  requestedItemImg = MainForm.AddNewProImage(chatPanel,'requestedItemImg');
+  clComponent.SetupComponent(requestedItemImg,'{"Align" : "Center", "Width" :60, "Height":60,"RoundHeight":10,"RoundWidth":10,"BorderColor":"#000000","BorderWidth":2,
+  "ImgUrl":"https://clomosy.com/demos/computerNetwork.png", "ImgFit":"yes"}');
+   
+  standImg = MainForm.AddNewProImage(standPanel,'standImg');
+  standImg.Align = alClient;
+  standImg.Margins.Left = 100;
+  clComponent.SetupComponent(standImg,'{
+  "ImgUrl":"https://i.hizliresim.com/dij59uo.png", "ImgFit":"yes", "ImgStretch": "yes"}');
+  clRTMethod(standImg, 'BringTofront');
+    
+  standLayout =  MainForm.AddNewLayout(standImg,'standLayout');  
+  standLayout.Align = alTop;
+  standLayout.Margins.Top = 5;
+  standLayout.Margins.Right = 20;
+  standLayout.Margins.Left = 20;
+  
+  itemImg1 = MainForm.AddNewProImage(standLayout, 'itemImg1');
+  itemImg1.Align = alCenter;
+  itemImg1.Margins.Right = standLayout.Width * 0.6;
+  itemImg2 = MainForm.AddNewProImage(standLayout, 'itemImg2');
+  itemImg2.Align = alCenter;
+  itemImg2.Margins.Right = standLayout.Width * 0.20;
+  itemImg3 = MainForm.AddNewProImage(standLayout, 'itemImg3');
+  itemImg3.Align = alCenter;
+  itemImg3.Margins.Left = standLayout.Width * 0.20;
+  itemImg4 = MainForm.AddNewProImage(standLayout, 'itemImg4');
+  itemImg4.Align = alCenter;
+  itemImg4.Margins.Left = standLayout.Width * 0.6;
+  
+  clComponent.SetupComponent(itemImg1,'{"Width" :100, "Height":100,"RoundHeight":5,"RoundWidth":5,
+  "ImgFit":"yes"}');
+  clComponent.SetupComponent(itemImg2,'{"Width" :100, "Height":100,"RoundHeight":5,"RoundWidth":5,
+  "ImgFit":"yes"}');
+  clComponent.SetupComponent(itemImg3,'{"Width" :100, "Height":100,"RoundHeight":5,"RoundWidth":5,
+  "ImgFit":"yes"}');
+  clComponent.SetupComponent(itemImg4,'{"Width" :100, "Height":100,"RoundHeight":5,"RoundWidth":5,
+  "ImgFit":"yes"}');
+  
+  backgroundImages = TclArrayString.Create;  //Dynamically changing background
+  backgroundImages.Add('https://i.hizliresim.com/rhtjhae.png'); 
+  backgroundImages.Add('https://i.hizliresim.com/7kit5mg.png');
+  backgroundImages.Add('https://i.hizliresim.com/9g28snh.png');
+  backgroundImages.Add('https://i.hizliresim.com/m22xc9k.png');
+  backgroundImages.Add('https://i.hizliresim.com/3yv0uqt.png');
+  backgroundImages.Add('https://i.hizliresim.com/pfs6vjl.png');
+   
+  customerImages = TclArrayString.Create;  //Different customer images
+  customerImages.Add('https://i.hizliresim.com/f6z743b.png');
+  customerImages.Add('https://i.hizliresim.com/5tg9qqv.png');
+  customerImages.Add('https://i.hizliresim.com/n1zshyq.png');
+  customerImages.Add('https://i.hizliresim.com/g1t4kwg.png');
+  customerImages.Add('https://i.hizliresim.com/qog2qj5.png');
+  customerImages.Add('https://i.hizliresim.com/5z4dklr.png');  
+  customerImages.Add('https://i.hizliresim.com/q81esc8.png');
+  customerImages.Add('https://i.hizliresim.com/n8dyo0w.png');
+  customerImages.Add('https://i.hizliresim.com/irjmpve.png');
+     
+  lblTimer= MainForm.AddNewProLabel(timePanel,'lblTimer','0.0');  //It shows current time
+  lblTimer.Align = alLeft;
+  lblTimer.Margins.Left= 130;
+  lblTimer.Margins.Top = timePanel.Height * 0.1;
+  lblTimer.Margins.Bottom = timePanel.Height * 0.1;
+  lblTimer.Width = 50;
+  clComponent.SetupComponent(lblTimer,'{ "TextBold":"yes","TextSize":14, "BackgroundColor": "#c4c4c4",
+  "BorderColor": "#ffffff", "BorderWidth" : 2,  "TextHorizontalAlign":"center" ,"MarginLeft":5, 
+  "TextVerticalAlign" : "center" , "RoundWidth" : 4, "RoundHeight" : 4}');
+
+  clockImg= MainForm.AddNewProImage(timePanel,'clockImg');
+  clockImg.Align = alMostLeft;
+  clockImg.Margins.Top = timePanel.Height * 0.1;
+  clockImg.Margins.Bottom = timePanel.Height * 0.1;
+  clockImg.Width = 50;
+  clComponent.SetupComponent(clockImg,'{"ImgUrl":"https://i.hizliresim.com/a3vm2ac.png", "ImgFit":"no", 
+  "BackgroundColor": "#c4c4c4","BorderColor": "#ffffff", "BorderWidth" : 2, "RoundWidth" : 4, "RoundHeight" : 4}');
+
+  lblDay= MainForm.AddNewProLabel(timePanel,'lblDay', 'Day:');
+  lblDay.Align = alRight;
+  lblDay.Margins.Top = timePanel.Height * 0.1;
+  lblDay.Margins.Bottom = timePanel.Height * 0.1;
+  lblDay.Width = 100;
+  clComponent.SetupComponent(lblDay,'{ "TextBold":"yes","TextSize":20, "TextHorizontalAlign":"center", "TextVerticalAlign" : "center" ,
+  "MarginRight":5, "BackgroundColor": "#c4c4c4","BorderColor": "#ffffff", "BorderWidth" : 2, "RoundWidth" : 4, "RoundHeight" : 4}');
+  
+  lblShopStatus= MainForm.AddNewProLabel(timePanel,'lblShopStatus', 'CLOSED');
+  lblShopStatus.Align = alCenter;
+  lblShopStatus.Height = timePanel.Height * 0.7;
+  lblShopStatus.Width = 100;
+  clComponent.SetupComponent(lblShopStatus,'{ "TextBold":"yes","TextSize":20, "TextHorizontalAlign":"center", "TextVerticalAlign":"center",
+  "TextColor" : "#ffffff" , "MarginRight":5, "RoundWidth" : 4, "RoundHeight" : 4, "BackgroundColor": "#eb1e1e","BorderColor": "#ffffff",
+  "BorderWidth" : 2}');
+ 
+  moneyPanel=MainForm.AddNewProPanel(standPanel,'moneyPanel');  //Bottom-right panel
+  moneyPanel.Align=alRight;
+  moneyPanel.Margins.Top=standPanel.Height*10/100;
+  moneyPanel.Margins.Bottom=standPanel.Height*10/100;
+  moneyPanel.Margins.Right = 5;
+  moneyPanel.Width = 150;
+  clComponent.SetupComponent(moneyPanel,'{"BackgroundColor": "#c4c4c4","BorderColor": "#ffffff", "BorderWidth" : 2, "RoundWidth" : 4, "RoundHeight" : 4}');
+    
+  lblMoney=MainForm.AddNewProLabel(moneyPanel, 'lblMoney', '$20000');  //Money info
+  lblMoney.Align=alTop;
+  lblMoney.Margins.Top=moneyPanel.Height*5/100;
+  lblMoney.Margins.Right=moneyPanel.Width*5/100;
+  lblMoney.Margins.Left=moneyPanel.Width*5/100;
+  clComponent.SetupComponent(lblMoney,'{ "TextBold":"yes","TextSize":16, "TextHorizontalAlign":"center", "TextVerticalAlign":"center",
+  "TextColor" : "#ffffff" , "RoundWidth" : 4, "RoundHeight" : 4, "BackgroundColor": "#c45f00","BorderColor": "#000000", "BorderWidth" : 2}');
+
+  customerImg = MainForm.AddNewProImage(custPanel,'customer');
+  customerImg.Align = alMostBottom;
+  customerImg.Height = custPanel.Height * 80/100;
+  customerImg.clProSettings.PictureSource = 'https://i.hizliresim.com/f6z743b.png';
+  customerImg.SetclProSettings(customerImg.clProSettings);
+ 
+  statsButton = MainForm.AddNewProButton(moneyPanel, 'statsButton', '📊Stats');
+  statsButton.Margins.Bottom=moneyPanel.Height*50/100;
+  statsButton.Height = moneyPanel.Height*15/100;
+  MainForm.SetImage(statsButton, greenButtonURL); 
+  clComponent.SetupComponent(statsButton,'{"Align": "center", "TextBold":"yes","TextSize":14, "ImgFit": "yes", "ImgStretch": "yes"}');
+  MainForm.AddNewEvent(statsButton,tbeOnClick,'ShowStats');
+
+  shopButton = MainForm.AddNewProButton(moneyPanel, 'shopButton', '🛒Shop');
+  shopButton.Height = moneyPanel.Height*15/100;
+  MainForm.SetImage(shopButton, greenButtonURL); 
+  clComponent.SetupComponent(shopButton,'{"Align": "center", "TextBold":"yes","TextSize":14, "ImgFit": "yes", "ImgStretch": "yes"}');
+  MainForm.AddNewEvent(shopButton,tbeOnClick,'GoToShop');
+     
+  sleepButton = MainForm.AddNewProButton(moneyPanel, 'sleepButton', '💤Sleep');
+  sleepButton.Margins.Top=moneyPanel.Height*50/100;
+  sleepButton.Height = moneyPanel.Height*15/100;
+  MainForm.SetImage(sleepButton, greenButtonURL);
+  clComponent.SetupComponent(sleepButton,'{"Align": "center", "TextBold":"yes","TextSize":14, "ImgFit": "yes", "ImgStretch": "yes"}');
+  MainForm.AddNewEvent(sleepButton,tbeOnClick,'SleepButtonF');
+  
+  lblPrice = MainForm.AddNewProLabel(chatPanel,'lblPrice', '');
+  lblPrice.Align = alMostTop;
+  lblPrice.Height = chatPanel.Height * 0.2;
+  lblPrice.Width = 200;
+  clComponent.SetupComponent(lblPrice,'{"TextSize":14, "TextColor": "#000000", "TextBold":"yes", 
+  "TextHorizontalAlign": "center", "MarginTop": 10}');  
+ 
+  //Defining default values
+  acceptButton.Visible = False;
+  rejectButton.Visible = False;
+  purchaseButton.Visible = False;
+  sellButton.Visible = False;
+  bargainButton.Visible = False;
+  cancelButton.Visible = False;
+  offerButton.Visible = False;
+  requestedItemImg.Visible = False;
+  customerImg.Visible = false;
+  customerArrived = False;
+  dayCounter = 1;
+  lblDay.Text = lblDay.Text + IntToStr(dayCounter);
+  itemCount = 0;
+  greenPotion = 1;
+  orangePotion = 1;
+  duration = 0;
+  dailyIncome = 0;
+  dailyExpense = 0;
+  totalIncome = 0;
+  totalExpense = 0;
+  purplePotion = False;
+  redPotion = False;
+  maxHour = 18;
+    
+  randomTime = clMath.GenerateRandom(7, 10);  //For the first customer to arrive
+  
+ MainForm.Run;
+}

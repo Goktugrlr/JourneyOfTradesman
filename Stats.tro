@@ -1,0 +1,115 @@
+uses
+clMainScript;
+
+var
+statsForm : TclGameForm;
+dailyChart, totalChart : TClChart;
+simpleJSONStr : String;
+dailyProfit, totalProfit, index : Integer;
+lblProfit, itemsSoldLbl, itemsPurchasedLbl : TClProLabel;
+bottomPanel, itemsSoldPanel, itemsPurchasedPanel: TclProPanel;
+backButton : TClProButton;
+parchLeft, parchRight : TClProImage;
+
+void BackToBazaar;
+{
+  statsForm.btnGoBackClick(self);
+  clMainScript.GetTimer.Enabled = True;
+}
+
+//Main
+{
+  statsForm = TclGameForm.Create(self);
+  statsForm.SetFormColor('#d4bb90', '#bfa880', clGVertical);
+  
+  dailyChart = statsForm.AddNewChart(statsForm,'dailyChart','');
+  simpleJSONStr = '[{ "Type": "Income","Value": ' + IntToStr(clMainScript.dailyIncome) + 
+  ',"color":"clGreen"},{"Type" : "Expense","Value": ' + IntToStr(clMainScript.dailyExpense) 
+  +',"color":"clRed"}]';
+ 
+  dailyChart.Align = alCenter;
+  dailyChart.Charttype = clCPie;
+  dailyChart.Margins.Right = 350;
+  dailyChart.Width = 200;
+  dailyChart.Height = 200;
+  dailyChart.XAxisText = 'Type';
+  dailyChart.ChartItemText = 'Legend';
+  dailyChart.ChartItemsValue = 'Value';
+  dailyChart.ChartTitle = 'Day ' + IntToStr(clMainScript.dayCounter) + ' Statistics';
+  dailyChart.clLoadDataFromJSONStr(simpleJSONStr);
+   
+  totalChart = statsForm.AddNewChart(statsForm,'totalChart','');
+  simpleJSONStr = '[{ "Type": "Income","Value": ' + IntToStr(clMainScript.totalIncome) + 
+  ',"color":"clGreen"},{"Type" : "Expense","Value": ' + IntToStr(clMainScript.totalExpense) +
+  ',"color":"clRed"}]';
+ 
+  totalChart.Align = alCenter;
+  totalChart.Charttype = clCPie;
+  totalChart.Margins.Left = 350;
+  totalChart.Width = 200;
+  totalChart.Height = 200;
+  totalChart.XAxisText = 'Type';
+  totalChart.ChartItemText = 'Legend';
+  totalChart.ChartItemsValue = 'Value';
+  totalChart.ChartTitle = 'Total Statistics';
+  totalChart.clLoadDataFromJSONStr(simpleJSONStr);
+        
+  dailyProfit = (clMainScript.dailyIncome - clMainScript.dailyExpense);
+  totalProfit = (clMainScript.totalIncome - clMainScript.totalExpense);
+  
+  lblProfit = statsForm.AddNewProLabel(statsForm, 'lblProfit', '');
+  lblProfit.Align = alMostTop;
+  lblProfit.Text = 'Daily Profit: ' + IntToStr(dailyProfit) + #13#5 + 'Total Profit: ' + IntToStr(totalProfit);
+  clComponent.SetupComponent(lblProfit,'{ "TextBold":"yes","TextSize":20, "TextHorizontalAlign":"center",
+  "MarginLeft":5, "Height": 60}');
+  
+  bottomPanel=statsForm.AddNewProPanel(statsForm, 'bottomPanel');
+  bottomPanel.Height=statsForm.clheight*40/100;
+  bottomPanel.Align=alBottom;
+
+  backButton = statsForm.AddNewProButton(bottomPanel, 'statsForm', 'BACK');
+  backButton.Height = 50;
+  clComponent.SetupComponent(backButton,'{"Align" : "center", "Width" :75,"ImgFit": "yes", "ImgStretch": "yes", 
+  "TextSize":14, "TextColor": "#000000", "TextBold":"yes"}');
+  statsForm.SetImage(backButton,'https://i.hizliresim.com/7rs6vw4.png'); 
+  statsForm.AddNewEvent(backButton,tbeOnClick,'Stats.BackToBazaar');
+
+  parchLeft = statsForm.AddNewProImage(bottomPanel,'parchLeft');
+  parchLeft.Align = alCenter;
+  parchLeft.Margins.Right = 350;
+  parchLeft.Height = bottomPanel.Height * 0.9;
+  parchLeft.Width = bottomPanel.Width * 0.25;
+  //parchLeft.Margins.Bottom = 30;
+  clComponent.SetupComponent(parchLeft,'{"ImgUrl":"https://i.hizliresim.com/mqybzsk.png", "ImgFit":"yes", "ImgStretch":"yes"}');
+
+  parchRight = statsForm.AddNewProImage(bottomPanel,'parchRight');
+  parchRight.Align = alCenter;
+  parchRight.Margins.Left = 350;
+  parchRight.Height = bottomPanel.Height * 0.9;
+  parchRight.Width = bottomPanel.Width * 0.25;
+  //parchRight.Margins.Bottom = 30;
+  clComponent.SetupComponent(parchRight,'{"ImgUrl":"https://i.hizliresim.com/mqybzsk.png", "ImgFit":"yes", "ImgStretch":"yes"}');
+   
+  itemsSoldLbl = statsForm.AddNewProLabel(parchLeft,'itemsSoldLbl', 'Daily Sold Item(s):');
+  itemsSoldLbl.Height = parchLeft.Height * 0.8;
+  clComponent.SetupComponent(itemsSoldLbl,'{"Align" : "center", "TextSize":10, "TextColor": "#000000", 
+  "TextBold":"yes", "TextHorizontalAlign": "center"}');
+
+  itemsPurchasedLbl = statsForm.AddNewProLabel(parchRight,'itemsPurchasedLbl', 'Daily Purchased Item(s):');
+  itemsPurchasedLbl.Height = parchRight.Height * 0.8;
+  clComponent.SetupComponent(itemsPurchasedLbl,'{"Align" : "center", "TextSize":10, "TextColor": "#000000", 
+  "TextBold":"yes", "TextHorizontalAlign": "center"}');
+  itemsPurchasedLbl.Width = parchRight.Width * 0.9;
+  
+  for(index = 0 to (clMainScript.dailySoldItems.Count - 1))
+  {
+    itemsSoldLbl.Text = itemsSoldLbl.Text + #13#5 + clMainScript.dailySoldItems.GetItem(index);
+  }
+   
+  for(index = 0 to (clMainScript.dailyPurchasedItems.Count - 1))
+  {
+    itemsPurchasedLbl.Text = itemsPurchasedLbl.Text + #13#5 + clMainScript.dailyPurchasedItems.GetItem(index);
+  }
+  
+  statsForm.Run;
+}
